@@ -9,7 +9,7 @@
  */
 
 
-/* quick exponentiation of long ints. -- TESTED. */
+/* quick exponentiation of long ints. */
 ull expo(ull base, int e) {
     add_to_stack("automaton -> expo");
     ll result = 1;
@@ -41,6 +41,7 @@ void reallocate(char** _buffer, ull size) {
  * writes to ull* file_size the amount of bytes read.
  */
 char* read_file(char* stream, ull* file_size) {
+    add_to_stack("automaton -> read_file");
     ull size = 0;
     ull max = 256;
     char* buffer = emalloc(256 * sizeof(char));
@@ -56,22 +57,27 @@ char* read_file(char* stream, ull* file_size) {
         c = fgetc(input);
     }
     *file_size = size;
+    pop_stack();
     return buffer;
 }
 
 /*
-* Returns the bits in position, as if start was a big strip of bits, instead of bytes.
-* length is the amount of bytes total, amount is how many bits to read.
-* Amount must be <= 8, since return is char.
-*/
+ * Returns the bits in position, as if start was a big strip of bits,
+ * instead of bytes.
+ * length is the amount of bytes total, amount is how many bits to read.
+ * Amount must be <= 8, since return is char.
+ */
 char read_bits(char* start, ull position, int amount, ull length) {
 
+    add_to_stack("automaton -> read_bits");
     /* Considering 8-bit byte... */
     ull byte = position / 8;
 
-    printf("POSITION = %lld\n", position);
+    debug_print(0, "~read_bits");
+
+    debug_print(0, "POSITION = %lld", position);
     char read_next = (position % 8) >= (9 - amount);
-    printf("read_next = %d\n", read_next);
+    debug_print(0, "read_next = %d", read_next);
 
     char out;
     char mask = 0;
@@ -91,14 +97,21 @@ char read_bits(char* start, ull position, int amount, ull length) {
         out += start[byte + 1] & (0xff << (8 - (position + amount) % 8));
     }
     else {
-        mask = (mask << (8 - amount) - (position % 8)) % 256;
-        printf("mask = %02x\n", mask);
+        // Shifts the correct amount: the sum of position + amount.
+        int amount_to_shift = 8 - ((position % 8) + amount);
+        debug_print(0, "amount_to_shift = %d", amount_to_shift);
+        mask <<= amount_to_shift;
+        debug_print(0, "mask = %02x", mask);
         out += start[byte] & mask;
+        out >>= amount_to_shift;
     }
+    pop_stack();
     return out;
 }
 
 void set_bit(char** start, ull position, bool value) {
+    add_to_stack("automaton -> set_bit");
+    debug_print(0, "~set_bit");
     ull byte = position / 8;
     int bit = position % 8;
     char temp = (*start)[byte];
@@ -110,6 +123,7 @@ void set_bit(char** start, ull position, bool value) {
         temp &= mask;
     }
     (*start)[byte] = temp;
+    pop_stack();
 }
 
 
@@ -118,33 +132,55 @@ void set_bit(char** start, ull position, bool value) {
  */
 
 
-const bool* create_rules(int rule_number, int influence) {
+const bool* create_rules(ull rule_number, int influence) {
+    add_to_stack("automaton -> create_rules");
     ull possible_combinations = expo(2, expo(2, influence));
-    // if(rule_number >= possible_combinations) {
-    //     _error("Impossible rule. Must be a number between 0 and 2^(2^influence).")
-    // }
+    debug_print(1, "Creating rules... rule no. %d", rule_number);
+    if(rule_number >= possible_combinations) {
+        kill("rule_number is bigger than all possible combinations.\n"
+             "rule_number = %lld, possible_combinations = %lld", rule_number, possible_combinations);
+    }
     bool* rulebook = malloc(expo(2, influence) * sizeof(bool));
     for (int rule = 0; rule_number > 0; rule++) {
         rulebook[rule] = rule_number % 2;
         rule_number >>= 1;
     }
     return rulebook;
+    pop_stack();
 }
 
 void apply_rule(const bool* rulebook, int influence, char** start, ull size) {
+    add_to_stack("automaton -> create_rules");
     ull no_bits = size << 3;
     char* end = malloc(size * sizeof(char));
     char bits;
     for(ull i = 0; i < no_bits; i++) {
         bits = read_bits(*start, i, influence, size);
-        printf("\tfinal bits = %02x\n", bits);
+        debug_print(0, "\tfinal bits = %02x", bits);
         set_bit(&end, i, rulebook[bits]);
     }
     free(*start);
     *start = end;
+    pop_stack();
+}
+
+void assert() {
+    add_to_stack("automaton -> assert");
+    char a[5] = "abcde";
+    char i = read_bits(a, 0, 4, 40);
+    char j = read_bits(a, 4, 4, 40);
+    if(i != 0b00000110) {
+        kill("i = %02x != 06!", i);
+    }
+    if(j != 0b00000001) {
+        kill("j = %02x != 01!", j);
+    }
+    pop_stack();
 }
 
 int main(int argc, char** argv) {
+    set_debug_priority(0);
+    assert();
     ull file_size;
     int influence = 3;
     char* buff = read_file(argv[1], &file_size);

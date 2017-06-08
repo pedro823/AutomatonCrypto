@@ -17,6 +17,8 @@ static stack head = NULL;
 
 static char name[1024] = "";
 
+static int program_priority = 0;
+
 void print_function_stack() {
     stack next;
     for(stack i = head; i != NULL; i = next) {
@@ -67,8 +69,20 @@ void kill(const char* expression, ...) {
     printf("In program %s:\n", name);
     printf("During the program, a fatal error ocurred:\n");
     print_function_stack();
-    fprintf(stderr, "%s: %s\n", name, error_msg);
+    fprintf(stderr, "\t%s: %s\n", name, error_msg);
     exit(-1);
+}
+
+
+void debug_print(int priority, const char* expression, ...) {
+    if(priority < program_priority) return;
+    va_list args;
+    char error_msg[1024];
+    va_start(args, expression);
+    vsnprintf(error_msg, 1024, expression, args);
+    va_end(args);
+
+    printf("debug.%d \t%s\n", priority, error_msg);
 }
 
 
@@ -84,4 +98,8 @@ void* emalloc(size_t size) {
 void set_program_name(const char* program_name) {
     strncpy(name, program_name, 1023);
     name[1023] = '\0';
+}
+
+void set_debug_priority(int priority) {
+    program_priority - priority;
 }
