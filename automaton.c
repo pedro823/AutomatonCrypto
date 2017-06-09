@@ -61,52 +61,27 @@ char* read_file(char* stream, ull* file_size) {
     return buffer;
 }
 
-/*
- * Returns the bits in position, as if start was a big strip of bits,
- * instead of bytes.
- * length is the amount of bytes total, amount is how many bits to read.
- * Amount must be <= 8, since return is char.
- */
-char read_bits(char* start, ull position, int amount, ull length) {
-
+bool* read_bits(char* start, ull position, int amount, ull length) {
     add_to_stack("automaton -> read_bits");
-    /* Considering 8-bit byte... */
+    /* figure out which byte to use */
     ull byte = position / 8;
+    int bit_place = position % 8;
+    int i;
+    bool* bits_v = emalloc(amount * sizeof(bool));
 
-    debug_print(0, "~read_bits");
-
-    debug_print(0, "POSITION = %lld", position);
-    char read_next = (position % 8) >= (9 - amount);
-    debug_print(0, "read_next = %d", read_next);
-
-    char out;
-    char mask = 0;
-
-    for(int i = 0; i < amount; i++) {
-        mask = (mask << 1) + 1;
-    }
-
-    if (read_next) {
-        /* also reads the second byte */
-        out <<= (position + amount) % 8;
-
-        /* Treats special case: reading last byte */
-        if(byte + 1 == length) {
-            byte = -1;
+    for(i = 0; i < amount; i++) {
+        bits_v[i] = (start[byte] >> bit_place) & 1;
+        if(bit_place == 7) {
+            bit_place = 0;
+            byte++;
         }
-        out += start[byte + 1] & (0xff << (8 - (position + amount) % 8));
+        else {
+            bit_place++;
+        }
     }
-    else {
-        // Shifts the correct amount: the sum of position + amount.
-        int amount_to_shift = 8 - ((position % 8) + amount);
-        debug_print(0, "amount_to_shift = %d", amount_to_shift);
-        mask <<= amount_to_shift;
-        debug_print(0, "mask = %02x", mask);
-        out += start[byte] & mask;
-        out >>= amount_to_shift;
-    }
+
     pop_stack();
-    return out;
+    return bits_v;
 }
 
 void set_bit(char** start, ull position, bool value) {
@@ -145,8 +120,8 @@ const bool* create_rules(ull rule_number, int influence) {
         rulebook[rule] = rule_number % 2;
         rule_number >>= 1;
     }
-    return rulebook;
     pop_stack();
+    return rulebook;
 }
 
 void apply_rule(const bool* rulebook, int influence, char** start, ull size) {
