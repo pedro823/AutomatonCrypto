@@ -8,7 +8,7 @@
 
 typedef struct {
     bool verbose;
-
+    char* file_name;
 } options;
 
 

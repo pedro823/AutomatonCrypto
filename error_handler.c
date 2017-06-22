@@ -101,5 +101,5 @@ void set_program_name(const char* program_name) {
 }
 
 void set_debug_priority(int priority) {
-    program_priority - priority;
+    program_priority = priority;
 }

@@ -17,6 +17,12 @@ ll fact(int x) {
 
 int main() {
     set_program_name("tester");
+    set_debug_priority(0);
+    debug_print(0, "YOOOO");
+    debug_print(1, "YOOO");
+    set_debug_priority(1);
+    debug_print(0, "YOOOO");
+    debug_print(1, "YOOO");
     printf("%lld\n", fact(15));
     return 0;
 }
