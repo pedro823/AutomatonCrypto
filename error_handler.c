@@ -19,7 +19,18 @@ static char name[1024] = "";
 
 static int program_priority = 0;
 
+void reverse_function_stack() {
+    stack next, prev = NULL;
+    for(stack i = head; i != NULL; i = next) {
+        next = i->next;
+        i->next = prev;
+        prev = i;
+    }
+    head = prev;
+}
+
 void print_function_stack() {
+    reverse_function_stack();
     stack next;
     for(stack i = head; i != NULL; i = next) {
         next = i->next;

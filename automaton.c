@@ -71,6 +71,9 @@ char* read_file(char* stream, ull* file_size) {
 /* Asserted and checked. */
 bool* read_bits(char* start, ull position, int amount, ull length) {
     add_to_stack("automaton -> read_bits");
+    if (position >= length) {
+        kill("position %d is bigger than length %d (in bits) of buffer", position, length);
+    }
     /* figure out which byte to use */
     ull byte = position / 8;
     /* Figure out which bit to use */
@@ -84,7 +87,6 @@ bool* read_bits(char* start, ull position, int amount, ull length) {
         bit_place += 8;
         byte++;
     }
-    // byte %= length;
     debug_print(0, "bit_place = %d", bit_place);
     int i;
     bool* bits_v = emalloc(amount * sizeof(bool));
@@ -136,7 +138,7 @@ void set_bit(char** start, ull position, bool value) {
  */
 
 
-const bool* create_rules(ull rule_number, int influence) {
+bool* create_rules(ull rule_number, int influence) {
     add_to_stack("automaton -> create_rules");
     ull possible_combinations = expo(2, expo(2, influence));
     debug_print(1, "Creating rules... rule no. %d", rule_number);
@@ -169,6 +171,23 @@ bool apply_rule(const bool* rulebook, bool* bits, int influence) {
     pop_stack();
     return result;
 }
+
+/* Applies one apply_rule for every byte in buffer */
+/* Overwrites buffer with new buffer */
+void step(char** buffer, const ull length, const bool* rulebook, int influence) {
+    add_to_stack("automaton -> step");
+    char* new_buffer = emalloc(length * sizeof(char));
+    bool *bits = emalloc(influence * sizeof(bool));
+    int bit_result;
+    for(ull i = 0; i < length * 8; i++) {
+        bits = read_bits(*buffer, i, influence, length * 8);
+        bit_result = apply_rule(rulebook, bits, influence);
+        set_bit(&new_buffer, i, bit_result);
+    }
+    (*buffer) = new_buffer;
+}
+
+/* assertion (unit testing) and main() */
 
 void assert() {
     add_to_stack("automaton -> assert");
@@ -203,22 +222,32 @@ void assert() {
     // Readfile test.
     ull file_size;
     char* buffer = read_file("tester", &file_size);
-    for(int i = 0; i < file_size; i++) {
-        printf("%c", buffer[i]);
-    }
     debug_print(0, "ended Readfile test.");
     free(buffer);
+    debug_print(1, "initiating create_rules test...");
+    bool* rules = create_rules(30, 3);
+    for(int i = 0; i < 8; i++) {
+        debug_print(1, "rules[%2x] = %d", i, rules[i]);
+    }
+    debug_print(1, "create_rules tested.");
+    bool bits[] = {0, 1, 0};
+    bool ruled = apply_rule(rules, bits, 3);
+    debug_print(0, "%d", ruled);
+    if(ruled != 1) {
+        kill("apply_rule: did not apply rule correctly. Should output 1.");
+    }
+    free(rules);
     pop_stack();
 }
 
 int main(int argc, char** argv) {
-    set_debug_priority(0);
-    add_to_stack("automaton -> assert");
+    set_debug_priority(1);
+    add_to_stack("automaton -> main");
     assert();
     ull file_size;
     int influence = 3;
     if(argc < 2) {
-        kill("no file specified");
+        kill("no file specified. try -h or --help.");
     }
     char* text = read_file(argv[1], &file_size);
 
